@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Kitchen Live Queue Dashboard | Campus Food Pre-Order{% endblock %}
+
+{% block content %}
+<div class="page-container wide">
+    <div class="admin-topbar">
+        <div>
+            <h2>👨‍🍳 Canteen & Kitchen Live Queue</h2>
+            <p>Live dashboard for canteen staff to prepare orders, call tokens, and manage the queue.</p>
+        </div>
+        <div class="admin-actions">
+            <button onclick="window.location.reload();" class="btn-secondary">🔄 Refresh Queue</button>
+        </div>
+    </div>
+
+    <!-- Admin KPI Stats -->
+    <div class="admin-stats-grid">
+        <div class="admin-stat-card active-card">
+            <div class="stat-value">{{ active_orders }}</div>
+            <div class="stat-name">Active in Queue</div>
+        </div>
+        <div class="admin-stat-card">
+            <div class="stat-value">{{ total_orders }}</div>
+            <div class="stat-name">Total Orders Today</div>
+        </div>
+        <div class="admin-stat-card revenue-card">
+            <div class="stat-value">₹{{ "%.2f"|format(total_revenue) }}</div>
+            <div class="stat-name">Total Revenue</div>
+        </div>
+    </div>
+
+    <!-- Active Orders Table / Cards -->
+    <div class="admin-section">
+        <h3>🔥 Live Orders in Preparation (FIFO Queue)</h3>
+        
+        {% if queue %}
+        <div class="kitchen-queue-grid">
+            {% for ord in queue %}
+            <div class="kitchen-card status-border-{{ ord.status|lower }}">
+                <div class="kitchen-card-head">
+                    <div class="kitchen-token">#{{ ord.token }}</div>
+                    <span class="status-badge status-{{ ord.status|lower }}">{{ ord.status }}</span>
+                </div>
+                
+                <div class="kitchen-student">
+                    <strong>{{ ord.name }}</strong> (Roll: {{ ord.roll_no }})
+                </div>
+
+                <div class="kitchen-time-info">
+                    <span>🕒 Placed: {{ ord.order_time.split(',')[0] }}</span>
+                    <span>⏰ Target: {{ ord.pickup }}</span>
+                </div>
+
+                <hr class="divider">
+
+                <div class="kitchen-items-list">
+                    <strong>Items:</strong>
+                    <ul>
+                        {% for itm in ord['items'] %}
+                        <li>
+                            <span class="itm-qty">{{ itm.quantity }}x</span>
+                            <span class="itm-title">{{ itm.name }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="kitchen-total-bar">
+                    <span>Total Bill: <strong>₹{{ "%.2f"|format(ord.total) }}</strong></span>
+                </div>
+
+                <!-- Status Update Buttons -->
+                <div class="kitchen-btn-group">
+                    {% if ord.status == 'Preparing' %}
+                    <form action="{{ url_for('update_status', token=ord.token, new_status='Ready') }}" method="POST">
+                        <button type="submit" class="btn-success btn-sm">🔔 Ready for Pickup</button>
+                    </form>
+                    {% endif %}
+
+                    {% if ord.status == 'Ready' %}
+                    <form action="{{ url_for('update_status', token=ord.token, new_status='Completed') }}" method="POST">
+                        <button type="submit" class="btn-primary btn-sm">✅ Handed Over (Complete)</button>
+                    </form>
+                    {% endif %}
+
+                    <form action="{{ url_for('cancel', token=ord.token) }}" method="POST" onsubmit="return confirm('Cancel order #{{ ord.token }}?');">
+                        <button type="submit" class="btn-danger-outline btn-sm">Cancel</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-admin-queue">
+            <span class="empty-icon">🎉</span>
+            <h4>Queue is currently clear!</h4>
+            <p>No pending orders at the moment. As students pre-order, tickets will appear here in real-time.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- All Orders History Table -->
+    {% if all_orders %}
+    <div class="admin-section history-section">
+        <h3>📋 All Orders Registry</h3>
+        <div class="table-responsive">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Token</th>
+                        <th>Student</th>
+                        <th>Roll No</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Pickup</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tok, ord in all_orders.items()|reverse %}
+                    <tr>
+                        <td><strong>#{{ tok }}</strong></td>
+                        <td>{{ ord.name }}</td>
+                        <td>{{ ord.roll_no }}</td>
+                        <td>
+                            {% for itm in ord['items'] %}
+                                {{ itm.quantity }}x {{ itm.name }}{% if not loop.last %}, {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td>₹{{ "%.2f"|format(ord.total) }}</td>
+                        <td>{{ ord.pickup }}</td>
+                        <td><span class="status-badge status-{{ ord.status|lower }}">{{ ord.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

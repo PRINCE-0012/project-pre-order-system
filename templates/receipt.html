@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Order Confirmed #{{ order.token }} | Campus Food Pre-Order{% endblock %}
+
+{% block content %}
+<div class="receipt-container">
+    <div class="receipt-card">
+        <div class="receipt-header">
+            <div class="success-icon-wrap">
+                <span class="success-icon">✅</span>
+            </div>
+            <h2>Order Placed Successfully!</h2>
+            <p class="receipt-sub">Show this token at the campus canteen counter to collect your meal.</p>
+        </div>
+
+        <!-- Big Token Number Banner -->
+        <div class="token-banner">
+            <span class="token-label">YOUR TOKEN NUMBER</span>
+            <div class="token-number">#{{ order.token }}</div>
+            <div class="token-meta">
+                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+                <span class="time-stamp">Placed on: {{ order.order_time }}</span>
+            </div>
+        </div>
+
+        <!-- Live Countdown & Status Box -->
+        {% if order.status != 'Cancelled' and order.status != 'Completed' %}
+        <div class="live-countdown-card" data-pickup="{{ order.pickup }}">
+            <span class="countdown-pulse-icon">⏳</span>
+            <div class="countdown-body">
+                <span class="countdown-label">REAL-TIME COUNTDOWN TO PICKUP</span>
+                <div class="countdown-timer" id="receipt-countdown">Calculating...</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Live Queue Stats for this order -->
+        <div class="receipt-queue-grid">
+            <div class="queue-stat-box">
+                <span class="box-icon">🚶</span>
+                <div class="box-val">
+                    {% if queue_info %}
+                        {{ queue_info.position }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </div>
+                <div class="box-lbl">Queue Position</div>
+            </div>
+            <div class="queue-stat-box">
+                <span class="box-icon">👥</span>
+                <div class="box-val">
+                    {% if queue_info %}
+                        {{ queue_info.people_ahead }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </div>
+                <div class="box-lbl">People Ahead</div>
+            </div>
+            <div class="queue-stat-box highlight">
+                <span class="box-icon">⏰</span>
+                <div class="box-val">{{ order.pickup }}</div>
+                <div class="box-lbl">Estimated Pickup</div>
+            </div>
+        </div>
+
+        <!-- Student Details -->
+        <div class="receipt-info-row">
+            <div>
+                <span class="info-label">Student Name:</span>
+                <strong class="info-value">{{ order.name }}</strong>
+            </div>
+            <div>
+                <span class="info-label">Roll Number:</span>
+                <strong class="info-value">{{ order.roll_no }}</strong>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Ordered Items Table -->
+        <div class="receipt-items-table">
+            <h3>Ordered Items</h3>
+            <table class="receipt-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th class="text-center">Qty</th>
+                        <th class="text-right">Price</th>
+                        <th class="text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order['items'] %}
+                    <tr>
+                        <td><strong>{{ item.name }}</strong></td>
+                        <td class="text-center">{{ item.quantity }}</td>
+                        <td class="text-right">₹{{ item.price }}</td>
+                        <td class="text-right">₹{{ item.price * item.quantity }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Bill Calculations -->
+        <div class="receipt-totals">
+            <div class="totals-line">
+                <span>Subtotal:</span>
+                <span>₹{{ "%.2f"|format(order.subtotal) }}</span>
+            </div>
+            {% if order.discount > 0 %}
+            <div class="totals-line discount-text">
+                <span>Campus Discount (10%):</span>
+                <span>-₹{{ "%.2f"|format(order.discount) }}</span>
+            </div>
+            {% endif %}
+            <div class="totals-line final-total">
+                <span>Total Payable:</span>
+                <span>₹{{ "%.2f"|format(order.total) }}</span>
+            </div>
+        </div>
+
+        <!-- Actions: Print, Track, Cancel, Order More -->
+        <div class="receipt-actions no-print">
+            <button onclick="window.print()" class="btn-secondary">
+                🖨️ Print Receipt
+            </button>
+            <a href="{{ url_for('status', token=order.token) }}" class="btn-info">
+                📍 Track Live Status
+            </a>
+            {% if order.status != 'Cancelled' and order.status != 'Completed' %}
+            <form action="{{ url_for('cancel', token=order.token) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel order #{{ order.token }}?');" style="display:inline;">
+                <button type="submit" class="btn-danger">
+                    ❌ Cancel Order
+                </button>
+            </form>
+            {% endif %}
+            <a href="{{ url_for('index') }}" class="btn-outline">
+                ➕ Order Again
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

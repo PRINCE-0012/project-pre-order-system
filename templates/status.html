@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Track Order Status | Campus Food Pre-Order{% endblock %}
+
+{% block content %}
+<div class="page-container narrow">
+    <div class="status-search-box">
+        <h2>🔍 Track Your Order</h2>
+        <p>Enter your 4-digit token number to check live queue position & preparation status.</p>
+        
+        <form action="{{ url_for('status') }}" method="POST" class="token-form">
+            <div class="token-input-group">
+                <input type="number" 
+                       name="token" 
+                       placeholder="Enter Token Number (e.g. 1001)" 
+                       value="{{ searched_token or '' }}" 
+                       required 
+                       autofocus>
+                <button type="submit" class="btn-primary">Track Order</button>
+            </div>
+        </form>
+    </div>
+
+    {% if order %}
+    <div class="status-card">
+        <div class="status-card-header">
+            <div>
+                <span class="token-badge">Token #{{ order.token }}</span>
+                <h3 class="student-title">{{ order.name }} ({{ order.roll_no }})</h3>
+            </div>
+            <div>
+                <span class="status-badge status-{{ order.status|lower }}">{{ order.status }}</span>
+            </div>
+        </div>
+
+        <!-- Progress Steps Tracker -->
+        <div class="order-progress">
+            <div class="progress-step {% if order.status in ['Preparing', 'Ready', 'Completed'] %}active completed{% endif %}">
+                <div class="step-circle">1</div>
+                <div class="step-label">Placed</div>
+            </div>
+            <div class="progress-line {% if order.status in ['Preparing', 'Ready', 'Completed'] %}filled{% endif %}"></div>
+            <div class="progress-step {% if order.status in ['Preparing', 'Ready', 'Completed'] %}active{% endif %} {% if order.status in ['Ready', 'Completed'] %}completed{% endif %}">
+                <div class="step-circle">2</div>
+                <div class="step-label">Preparing</div>
+            </div>
+            <div class="progress-line {% if order.status in ['Ready', 'Completed'] %}filled{% endif %}"></div>
+            <div class="progress-step {% if order.status in ['Ready', 'Completed'] %}active{% endif %} {% if order.status == 'Completed' %}completed{% endif %}">
+                <div class="step-circle">3</div>
+                <div class="step-label">Ready for Pickup</div>
+            </div>
+            <div class="progress-line {% if order.status == 'Completed' %}filled{% endif %}"></div>
+            <div class="progress-step {% if order.status == 'Completed' %}active completed{% endif %}">
+                <div class="step-circle">4</div>
+                <div class="step-label">Collected</div>
+            </div>
+        </div>
+
+        <!-- Order Information Cards -->
+        <div class="status-stats-grid">
+            <div class="stat-box">
+                <span class="icon">🚶</span>
+                <span class="num">
+                    {% if queue_info %}
+                        #{{ queue_info.position }}
+                    {% elif order.status == 'Completed' %}
+                        Done
+                    {% elif order.status == 'Cancelled' %}
+                        -
+                    {% else %}
+                        Ready
+                    {% endif %}
+                </span>
+                <span class="label">Queue Position</span>
+            </div>
+            <div class="stat-box">
+                <span class="icon">👥</span>
+                <span class="num">
+                    {% if queue_info %}
+                        {{ queue_info.people_ahead }}
+                    {% else %}
+                        0
+                    {% endif %}
+                </span>
+                <span class="label">People Ahead</span>
+            </div>
+            <div class="stat-box">
+                <span class="icon">⏰</span>
+                <span class="num">{{ order.pickup }}</span>
+                <span class="label">Estimated Pickup</span>
+            </div>
+            <div class="stat-box highlight">
+                <span class="icon">💳</span>
+                <span class="num">₹{{ "%.2f"|format(order.total) }}</span>
+                <span class="label">Total Bill</span>
+            </div>
+        </div>
+
+        <!-- Ordered Items Summary -->
+        <div class="order-items-summary">
+            <h4>Items in this order:</h4>
+            <div class="items-chip-list">
+                {% for itm in order['items'] %}
+                <span class="item-chip">
+                    {{ itm.name }} <strong>x{{ itm.quantity }}</strong> (₹{{ itm.price * itm.quantity }})
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Action Row -->
+        <div class="status-actions">
+            <a href="{{ url_for('receipt', token=order.token) }}" class="btn-secondary">
+                📄 View Full Receipt
+            </a>
+            
+            {% if order.status != 'Cancelled' and order.status != 'Completed' %}
+            <form action="{{ url_for('cancel', token=order.token) }}" method="POST" onsubmit="return confirm('Do you really want to cancel this order?');" style="display: inline;">
+                <button type="submit" class="btn-danger">
+                    ❌ Cancel Order
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% elif searched_token %}
+    <div class="not-found-card">
+        <span class="not-found-icon">❓</span>
+        <h3>Order Not Found</h3>
+        <p>No active or past order was found with Token #{{ searched_token }}. Please check the number and try again.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

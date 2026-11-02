@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Menu & Pre-Order | Campus Food Pre-Order{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <!-- Hero / Promo Section -->
+    <section class="hero-banner">
+        <div class="hero-content">
+            <span class="badge-pill">⚡ Beat the Canteen Rush</span>
+            <h1>Smart Campus Food Pre-Order</h1>
+            <p>Order fresh meals right from your class or hostel. Pick up with zero wait time!</p>
+            <div class="promo-box">
+                <span class="promo-icon">🎁</span>
+                <div>
+                    <strong>Campus Special Offer:</strong> Get <strong>10% Flat Discount</strong> on orders of ₹300 or more!
+                </div>
+            </div>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-card">
+                <span class="stat-num" id="live-queue-count">{{ active_count }}</span>
+                <span class="stat-label">Orders in Queue</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-num">~5 Min</span>
+                <span class="stat-label">Prep Per Order</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Order Layout: Menu Grid + Cart Summary -->
+    <form action="{{ url_for('place_order') }}" method="POST" id="order-form">
+        <div class="order-layout">
+            <!-- Left Side: Food Menu -->
+            <div class="menu-section">
+                <div class="section-header">
+                    <h2>Campus Canteen Menu</h2>
+                    <span class="section-subtitle">Select quantities to add items to your cart</span>
+                </div>
+
+                <div class="menu-grid">
+                    {% for item_id, item in menu.items() %}
+                    <div class="food-card" data-id="{{ item_id }}" data-name="{{ item.name }}" data-price="{{ item.price }}">
+                        <div class="food-icon-wrap">
+                            <span class="food-emoji">{{ item.icon }}</span>
+                            <span class="category-badge">{{ item.category }}</span>
+                        </div>
+                        <div class="food-info">
+                            <h3 class="food-name">{{ item.name }}</h3>
+                            <p class="food-desc">{{ item.desc }}</p>
+                            <div class="food-meta">
+                                <span class="food-price">₹{{ item.price }}</span>
+                                
+                                <div class="qty-control">
+                                    <button type="button" class="btn-qty btn-minus" onclick="decreaseQty({{ item_id }})">-</button>
+                                    <input type="number" 
+                                           id="qty_{{ item_id }}" 
+                                           name="qty_{{ item_id }}" 
+                                           value="0" 
+                                           min="0" 
+                                           max="20" 
+                                           class="qty-input" 
+                                           readonly>
+                                    <button type="button" class="btn-qty btn-plus" onclick="increaseQty({{ item_id }})">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Right Side: Order Summary & Student Details -->
+            <aside class="cart-section">
+                <div class="cart-card">
+                    <div class="cart-header">
+                        <h3>Your Order Tray</h3>
+                        <span class="cart-item-count" id="total-items-badge">0 items</span>
+                    </div>
+
+                    <!-- Real-Time Canteen Live Status Widget -->
+                    <div class="realtime-status-card">
+                        <div class="realtime-header">
+                            <div class="live-pill">
+                                <span class="live-pulse-dot"></span>
+                                <span class="live-text">REAL-TIME LIVE</span>
+                            </div>
+                            <span class="realtime-subtitle">Instant 1-Click Token</span>
+                        </div>
+                        <div class="realtime-grid">
+                            <div class="realtime-cell">
+                                <span class="rt-label">🕒 Live Clock</span>
+                                <span class="rt-val" id="live-clock">--:--:--</span>
+                            </div>
+                            <div class="realtime-cell">
+                                <span class="rt-label">🚶 Orders in Queue</span>
+                                <span class="rt-val text-primary" id="live-tray-queue">{{ active_count }} Orders</span>
+                            </div>
+                            <div class="realtime-cell">
+                                <span class="rt-label">⏱️ Est. Prep Time</span>
+                                <span class="rt-val text-green" id="live-tray-wait">~{{ (active_count + 1) * 5 }} min</span>
+                            </div>
+                            <div class="realtime-cell">
+                                <span class="rt-label">🎯 Est. Pickup</span>
+                                <span class="rt-val" id="live-tray-pickup">Calculating...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="divider">
+
+                    <!-- Cart Items List -->
+                    <div class="cart-items" id="cart-items-container">
+                        <div class="empty-cart-msg">
+                            <span class="empty-icon">🛒</span>
+                            <p>Your tray is currently empty.</p>
+                            <small>Click '+' on any food item to add.</small>
+                        </div>
+                    </div>
+
+                    <hr class="divider">
+
+                    <!-- Billing Calculations -->
+                    <div class="bill-summary">
+                        <div class="bill-row">
+                            <span>Subtotal</span>
+                            <span id="bill-subtotal">₹0.00</span>
+                        </div>
+                        <div class="bill-row discount-row" id="discount-row" style="display: none;">
+                            <span>Discount (10%) <span class="badge-tag">Promo</span></span>
+                            <span id="bill-discount" class="text-green">-₹0.00</span>
+                        </div>
+                        <div class="discount-hint" id="discount-hint">
+                            💡 Add <strong id="discount-remaining">₹300.00</strong> more to get <strong>10% OFF</strong>!
+                        </div>
+                        <div class="bill-row total-row">
+                            <span>Grand Total</span>
+                            <span id="bill-total">₹0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Estimated Pickup Hint -->
+                    <div class="pickup-preview">
+                        <span class="clock-icon">⏱️</span>
+                        <div>
+                            <div class="pickup-title">Estimated Wait Time</div>
+                            <div class="pickup-desc">Ready in approx. <strong>{{ (active_count + 1) * 5 }} mins</strong> once confirmed.</div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn-primary btn-block" id="btn-submit-order" disabled>
+                        <span>Confirm & Generate Token</span> 🚀
+                    </button>
+                    
+                    <p class="cart-footer-note">⚡ Token will be generated instantly for canteen counter pickup.</p>
+                </div>
+            </aside>
+        </div>
+    </form>
+</div>
+{% endblock %}
